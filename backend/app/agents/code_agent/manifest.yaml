@@ -1,0 +1,10 @@
+key: code_agent
+version: 0.1.0
+display_name: 代码智能体
+description: 负责代码分析、生成和沙箱测试。
+responsibility: 只在沙箱内处理代码任务，不绕过沙箱访问宿主机。
+allowed_tools:
+  - sandbox.code.run
+memory_namespace: agent.code
+max_iterations: 6
+max_runtime_seconds: 180

@@ -1,0 +1,11 @@
+key: browser_agent
+version: 0.1.0
+display_name: 浏览器智能体
+description: 负责浏览器访问、页面交互和网页验证。
+responsibility: 只处理浏览器任务，不执行终端命令。
+allowed_tools:
+  - browser.navigate
+  - browser.snapshot
+memory_namespace: agent.browser
+max_iterations: 6
+max_runtime_seconds: 180

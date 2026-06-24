@@ -1,0 +1,37 @@
+# 真实环境配置文件，包含本地密钥、数据库密码、API Token 等敏感信息，不允许提交到 Git。
+.env
+.env.*
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+
+# 保留可提交的配置模板文件，用于说明本地开发和生产部署需要哪些配置项。
+!backend/.env.example
+!backend/.env.prod.example
+!frontend/.env.example
+!frontend/.env.prod.example
+
+# 本地联网检索、工具运行和临时输出缓存，不属于项目源代码。
+.codegraph/
+.firecrawl/
+.codex-screenshots/
+output/
+
+# Python 运行缓存。
+__pycache__/
+*.py[cod]
+.venv/
+backend/.venv/
+backend/*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node.js 依赖和构建产物。
+node_modules/
+dist/
+coverage/
+frontend/.npm-cache/
+frontend/vite.config.js
+frontend/vite.config.d.ts

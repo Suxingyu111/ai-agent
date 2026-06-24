@@ -1,0 +1,11 @@
+key: research_agent
+version: 0.1.0
+display_name: 研究智能体
+description: 负责联网检索、网页抓取、资料归纳和来源整理。
+responsibility: 只完成研究相关任务，不负责最终写作、代码执行或文件修改。
+allowed_tools:
+  - firecrawl.search
+  - firecrawl.scrape
+memory_namespace: agent.research
+max_iterations: 6
+max_runtime_seconds: 180

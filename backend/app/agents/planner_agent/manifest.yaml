@@ -1,0 +1,9 @@
+key: planner_agent
+version: 0.1.0
+display_name: 规划智能体
+description: 拆解目标、制定步骤和定义完成标准。
+responsibility: 只负责规划，不直接调用外部 API 或执行工具。
+allowed_tools: []
+memory_namespace: agent.planner
+max_iterations: 6
+max_runtime_seconds: 180

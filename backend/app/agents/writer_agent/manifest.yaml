@@ -1,0 +1,9 @@
+key: writer_agent
+version: 0.1.0
+display_name: 写作智能体
+description: 汇总材料、组织表达并生成结构化内容。
+responsibility: 只负责内容组织和写作，不自行联网检索。
+allowed_tools: []
+memory_namespace: agent.writer
+max_iterations: 6
+max_runtime_seconds: 180

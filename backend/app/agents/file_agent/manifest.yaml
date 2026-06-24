@@ -1,0 +1,11 @@
+key: file_agent
+version: 0.1.0
+display_name: 文件智能体
+description: 在授权工作区内读取、写入和整理文件。
+responsibility: 只处理授权工作区文件，不访问工作区外路径。
+allowed_tools:
+  - file.read
+  - file.write
+memory_namespace: agent.file
+max_iterations: 6
+max_runtime_seconds: 180

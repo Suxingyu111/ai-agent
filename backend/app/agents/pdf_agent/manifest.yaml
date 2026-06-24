@@ -1,0 +1,10 @@
+key: pdf_agent
+version: 0.1.0
+display_name: PDF 智能体
+description: 负责 PDF 生成、模板渲染和版式检查。
+responsibility: 只处理 PDF 产物，不负责内容事实判断。
+allowed_tools:
+  - pdf.render
+memory_namespace: agent.pdf
+max_iterations: 6
+max_runtime_seconds: 180

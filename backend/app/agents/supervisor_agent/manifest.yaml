@@ -1,0 +1,9 @@
+key: supervisor_agent
+version: 0.1.0
+display_name: 主管智能体
+description: 识别任务类型、选择合适智能体并分配子任务。
+responsibility: 只负责调度、分派和汇总，不直接执行业务工具。
+allowed_tools: []
+memory_namespace: agent.supervisor
+max_iterations: 6
+max_runtime_seconds: 180

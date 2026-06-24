@@ -1,0 +1,9 @@
+key: reviewer_agent
+version: 0.1.0
+display_name: 审核智能体
+description: 审核事实、风险、格式和完成标准。
+responsibility: 只给出审核结论和修改建议，不直接修改原始产物。
+allowed_tools: []
+memory_namespace: agent.reviewer
+max_iterations: 6
+max_runtime_seconds: 180

@@ -1,0 +1,11 @@
+key: map_agent
+version: 0.1.0
+display_name: 地图智能体
+description: 负责地图、地理编码、路线和位置服务。
+responsibility: 只处理地图相关任务，不处理非地图任务。
+allowed_tools:
+  - map.geocode
+  - map.route
+memory_namespace: agent.map
+max_iterations: 6
+max_runtime_seconds: 180

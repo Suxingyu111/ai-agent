@@ -1,0 +1,10 @@
+key: knowledge_agent
+version: 0.1.0
+display_name: 知识库智能体
+description: 查询授权知识库并返回带引用的证据。
+responsibility: 只负责知识库检索和证据整理，不访问未授权知识库。
+allowed_tools:
+  - knowledge.retrieve
+memory_namespace: agent.knowledge
+max_iterations: 6
+max_runtime_seconds: 180
