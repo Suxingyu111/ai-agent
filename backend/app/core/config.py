@@ -35,15 +35,29 @@ class Settings(BaseSettings):
         validation_alias="DATABASE_URL",
     )
     redis_url: str = Field(default="redis://127.0.0.1:6379/0", validation_alias="REDIS_URL")
-    default_llm_provider: str = Field(default="openrouter", validation_alias="DEFAULT_LLM_PROVIDER")
-    default_chat_model: str = Field(
+    llm_model: str = Field(
         default="openai/gpt-4.1-mini",
-        validation_alias="DEFAULT_CHAT_MODEL",
+        validation_alias="LLM_MODEL",
     )
+    llm_api_key: str = Field(default="", validation_alias="LLM_API_KEY")
+    llm_base_url: str = Field(default="", validation_alias="LLM_BASE_URL")
+    llm_temperature: float = Field(default=0.7, validation_alias="LLM_TEMPERATURE")
+    llm_max_tokens: int = Field(default=1200, validation_alias="LLM_MAX_TOKENS")
+    llm_timeout_seconds: int = Field(default=60, validation_alias="LLM_TIMEOUT_SECONDS")
+    llm_max_retries: int = Field(default=3, validation_alias="LLM_MAX_RETRIES")
     vector_store_provider: str = Field(default="qdrant", validation_alias="VECTOR_STORE_PROVIDER")
     storage_provider: str = Field(default="local", validation_alias="STORAGE_PROVIDER")
     mcp_enabled: bool = Field(default=True, validation_alias="MCP_ENABLED")
     sandbox_enabled: bool = Field(default=True, validation_alias="SANDBOX_ENABLED")
+    guardrails_enabled: bool = Field(default=True, validation_alias="GUARDRAILS_ENABLED")
+    guardrails_audit_enabled: bool = Field(
+        default=True,
+        validation_alias="GUARDRAILS_AUDIT_ENABLED",
+    )
+    guardrails_default_block_message: str = Field(
+        default="这个请求可能涉及安全或隐私风险，我不能按这个方向继续。",
+        validation_alias="GUARDRAILS_DEFAULT_BLOCK_MESSAGE",
+    )
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

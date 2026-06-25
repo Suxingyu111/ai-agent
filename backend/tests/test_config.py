@@ -36,3 +36,37 @@ def test_settings_reads_comma_separated_cors_origins_from_env_file(tmp_path) -> 
         "http://127.0.0.1:5173",
         "http://localhost:5173",
     ]
+
+
+def test_settings_reads_single_generic_llm_configuration() -> None:
+    settings = Settings(
+        APP_ENV="test",
+        LLM_MODEL="openai/gpt-4.1-mini",
+        LLM_API_KEY="test-api-key",
+        LLM_BASE_URL="https://openrouter.ai/api/v1",
+        LLM_TEMPERATURE=0.6,
+        LLM_MAX_TOKENS=1600,
+        LLM_TIMEOUT_SECONDS=45,
+        LLM_MAX_RETRIES=2,
+    )
+
+    assert settings.llm_model == "openai/gpt-4.1-mini"
+    assert settings.llm_api_key == "test-api-key"
+    assert settings.llm_base_url == "https://openrouter.ai/api/v1"
+    assert settings.llm_temperature == 0.6
+    assert settings.llm_max_tokens == 1600
+    assert settings.llm_timeout_seconds == 45
+    assert settings.llm_max_retries == 2
+
+
+def test_settings_reads_guardrail_configuration() -> None:
+    settings = Settings(
+        APP_ENV="test",
+        GUARDRAILS_ENABLED=False,
+        GUARDRAILS_AUDIT_ENABLED=True,
+        GUARDRAILS_DEFAULT_BLOCK_MESSAGE="安全策略已拦截。",
+    )
+
+    assert settings.guardrails_enabled is False
+    assert settings.guardrails_audit_enabled is True
+    assert settings.guardrails_default_block_message == "安全策略已拦截。"
