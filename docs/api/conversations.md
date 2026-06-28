@@ -106,16 +106,34 @@
     "message_id": "msg_1",
     "role": "user",
     "content": "我和她暧昧两个月了，想推进关系但怕太主动。",
-    "safety_flags": []
+    "safety_flags": [],
+    "citations": []
   },
   "assistant_message": {
     "message_id": "msg_2",
     "role": "assistant",
     "content": "你现在的难点是想推进暧昧关系...",
-    "safety_flags": []
+    "safety_flags": [],
+    "citations": [
+      {
+        "chunk_id": "chunk_...",
+        "title": "暧昧期低压力邀约原则",
+        "source_uri": "local://love-master/curated/ambiguous_invitation.md",
+        "score": 0.82
+      }
+    ]
   },
   "memory_summary": "用户当前关系阶段可能是暧昧期。",
-  "safety_flags": []
+  "safety_flags": [],
+  "knowledge_used": true,
+  "citations": [
+    {
+      "chunk_id": "chunk_...",
+      "title": "暧昧期低压力邀约原则",
+      "source_uri": "local://love-master/curated/ambiguous_invitation.md",
+      "score": 0.82
+    }
+  ]
 }
 ```
 
@@ -136,10 +154,13 @@
     "message_id": "msg_2",
     "role": "assistant",
     "content": "我不能帮助你跟踪、监视、骚扰或操控对方...",
-    "safety_flags": ["unsafe_control_or_harassment"]
+    "safety_flags": ["unsafe_control_or_harassment"],
+    "citations": []
   },
   "memory_summary": "",
-  "safety_flags": ["unsafe_control_or_harassment"]
+  "safety_flags": ["unsafe_control_or_harassment"],
+  "knowledge_used": false,
+  "citations": []
 }
 ```
 
@@ -221,13 +242,22 @@
       "message_id": "msg_1",
       "role": "user",
       "content": "我和她暧昧两个月了，想推进关系但怕太主动。",
-      "safety_flags": []
+      "safety_flags": [],
+      "citations": []
     },
     {
       "message_id": "msg_2",
       "role": "assistant",
       "content": "你现在的难点是想推进暧昧关系...",
-      "safety_flags": []
+      "safety_flags": [],
+      "citations": [
+        {
+          "chunk_id": "chunk_...",
+          "title": "暧昧期低压力邀约原则",
+          "source_uri": "local://love-master/curated/ambiguous_invitation.md",
+          "score": 0.82
+        }
+      ]
     }
   ]
 }
@@ -243,6 +273,14 @@ interface ConversationMessage {
   role: ConversationRole
   content: string
   safetyFlags: string[]
+  citations: KnowledgeCitation[]
+}
+
+interface KnowledgeCitation {
+  chunkId: string
+  title: string
+  sourceUri: string
+  score: number
 }
 
 interface LoveConversation {
@@ -260,6 +298,8 @@ interface LoveConversationMessageResult {
   assistantMessage: ConversationMessage
   memorySummary: string
   safetyFlags: string[]
+  knowledgeUsed: boolean
+  citations: KnowledgeCitation[]
 }
 
 interface LoveConversationMessagesResult {
@@ -299,6 +339,9 @@ interface LoveReportOptions {
 ## 特殊行为说明
 
 - 多轮记忆：当前通过同一会话内的 `memory_summary` 保存关系阶段摘要，例如“用户当前关系阶段可能是暧昧期”。摘要会持久化到数据库，服务重启后仍可继续使用。
+- RAG 知识库：发送消息时服务端会自动基于用户问题检索 AI 恋爱大师默认知识库，不要求前端或用户手动选择“单身篇、恋爱篇、已婚篇”等目录。
+- 知识证据注入：服务端只会把过滤、去重、截断后的少量知识片段注入大模型，不会把全部检索文本发送给模型。
+- 引用来源：当 `knowledge_used` 为 `true` 时，`assistant_message.citations` 和顶层 `citations` 会返回本轮使用的知识片段来源，前端可折叠展示。
 - 前端恢复：聊天工作台会把当前 `conversation_id` 写入 `localStorage.ai-agent.love-master.current-conversation-id`，刷新页面时读取会话详情和历史消息；如果恢复阶段后端返回 `404`，前端会清理本地会话 id；如果发送消息阶段遇到旧会话 `404`，前端会清理旧会话、自动创建新会话并重试本次消息一次。
 - 记忆隔离：AI 恋爱大师只使用 `agent.love_master` 命名空间，不读取其他智能体记忆。
 - 安全边界：接口已接入通用 AI Guardrails，用户输入和模型输出都会经过安全拦截。

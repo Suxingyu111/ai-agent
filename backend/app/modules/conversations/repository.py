@@ -74,6 +74,7 @@ class ConversationRepository:
                     role=message.role,
                     content=message.content,
                     safety_flags=message.safety_flags,
+                    citations=message.citations,
                     sequence_no=sequence_no,
                 )
             )
@@ -157,4 +158,5 @@ class ConversationRepository:
             role=message.role,  # type: ignore[arg-type]
             content=message.content,
             safety_flags=list(message.safety_flags or []),
+            citations=list(message.citations or []),
         )

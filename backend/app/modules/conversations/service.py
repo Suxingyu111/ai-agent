@@ -24,6 +24,7 @@ from app.modules.conversations.schemas import (
     MessageCreateRequest,
     MessageCreateResponse,
 )
+from app.modules.knowledge.service import KnowledgeService
 
 
 @dataclass
@@ -43,6 +44,7 @@ class ConversationService:
         model_client: ChatModelClient | None = None,
         guardrail_pipeline: GuardrailPipeline | None = None,
         session_factory: SessionFactory | None = None,
+        knowledge_service: KnowledgeService | None = None,
     ) -> None:
         if session_factory is None:
             session_factory = create_session_factory("sqlite+pysqlite:///:memory:")
@@ -50,6 +52,7 @@ class ConversationService:
         self._repository = ConversationRepository(session_factory)
         self._love_master_agent = LoveMasterAgent(model_client=model_client)
         self._guardrails = guardrail_pipeline or build_default_guardrail_pipeline()
+        self._knowledge_service = knowledge_service
 
     def create_conversation(
         self, payload: ConversationCreateRequest
@@ -113,6 +116,20 @@ class ConversationService:
                 safety_flags=input_flags,
             )
 
+        knowledge_result = None
+        knowledge_evidence = ""
+        citations: list[dict[str, object]] = []
+        if self._knowledge_service is not None:
+            knowledge_result = self._knowledge_service.query_love_master(
+                query=user_content,
+                tenant_id="default",
+                project_id="default",
+            )
+            citations = knowledge_result.citations
+            knowledge_evidence = self._knowledge_service.format_evidence_for_prompt(
+                knowledge_result.evidence
+            )
+
         result = await self._love_master_agent.run(
             AgentTask(
                 task_id=f"task_{uuid4().hex}",
@@ -122,6 +139,8 @@ class ConversationService:
                 input_data={
                     "messages": [message.model_dump() for message in record.messages],
                     "memory_summary": record.memory_summary,
+                    "knowledge_evidence": knowledge_evidence,
+                    "citations": citations,
                 },
             ),
             AgentContext(
@@ -157,6 +176,7 @@ class ConversationService:
             role="assistant",
             content=assistant_content,
             safety_flags=safety_flags,
+            citations=result.data.get("citations", []) if output_result.decision != GuardrailDecision.BLOCK else [],
         )
         record.messages.append(assistant_message)
         self._repository.add_message(record.conversation_id, assistant_message)
@@ -168,6 +188,8 @@ class ConversationService:
             assistant_message=assistant_message,
             memory_summary=record.memory_summary,
             safety_flags=safety_flags,
+            knowledge_used=bool(knowledge_result and knowledge_result.knowledge_used),
+            citations=citations if output_result.decision != GuardrailDecision.BLOCK else [],
         )
 
     def list_messages(self, conversation_id: str) -> ConversationMessagesResponse:

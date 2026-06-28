@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 from sqlalchemy import Engine, create_engine
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -30,3 +31,22 @@ def create_session_factory(database_url: str) -> sessionmaker[Session]:
 def create_db_and_tables(session_factory: sessionmaker[Session]) -> None:
     engine = session_factory.kw["bind"]
     Base.metadata.create_all(engine)
+    _apply_compatibility_migrations(engine)
+
+
+def _apply_compatibility_migrations(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "conversation_messages" not in inspector.get_table_names():
+        return
+
+    message_columns = {column["name"] for column in inspector.get_columns("conversation_messages")}
+    if "citations" in message_columns:
+        return
+
+    with engine.begin() as connection:
+        if engine.dialect.name == "mysql":
+            connection.execute(text("ALTER TABLE conversation_messages ADD COLUMN citations JSON NULL"))
+        else:
+            connection.execute(
+                text("ALTER TABLE conversation_messages ADD COLUMN citations JSON DEFAULT '[]'")
+            )

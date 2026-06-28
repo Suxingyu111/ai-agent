@@ -7,6 +7,101 @@ export interface ConversationMessage {
   role: 'user' | 'assistant'
   content: string
   safetyFlags: string[]
+  citations: KnowledgeCitation[]
+}
+
+export interface KnowledgeCitation {
+  chunkId: string
+  title: string
+  sourceUri: string
+  score: number
+}
+
+export interface KnowledgeChunk {
+  chunkId: string
+  chunkIndex: number
+  title: string
+  titlePath: string
+  content: string
+  tokenCount: number
+  qdrantPointId: string | null
+  status: string
+  metadata: Record<string, unknown>
+}
+
+export interface KnowledgeDocument {
+  documentId: string
+  knowledgeBaseId: string
+  title: string
+  sourceType: string
+  sourceUri: string
+  version: string
+  status: string
+  metadata: Record<string, unknown>
+  chunks: KnowledgeChunk[]
+}
+
+export interface KnowledgeDocumentsResult {
+  knowledgeBaseId: string
+  documentCount: number
+  chunkCount: number
+  documents: KnowledgeDocument[]
+}
+
+export interface KnowledgeEvidence {
+  chunkId: string
+  documentId: string
+  knowledgeBaseId: string
+  title: string
+  sourceUri: string
+  content: string
+  score: number
+  relationshipStage: string | null
+  primaryCategory: string | null
+  topicTags: string[]
+  intentTags: string[]
+  safetyLevel: string
+}
+
+export interface KnowledgeRetrievalDebugResult {
+  query: string
+  classification: {
+    relationshipStage?: string
+    primaryCategory?: string
+    [key: string]: unknown
+  }
+  knowledgeUsed: boolean
+  candidateCount: number
+  selectedEvidence: KnowledgeEvidence[]
+  citations: KnowledgeCitation[]
+}
+
+export interface KnowledgeReindexResult {
+  knowledgeBaseId: string
+  collectionName: string
+  documentCount: number
+  chunkCount: number
+}
+
+export interface KnowledgeRetrievalEvaluationOptions {
+  query: string
+  expectedTitles: string[]
+  forbiddenTitles: string[]
+  limit?: number
+}
+
+export interface KnowledgeRetrievalEvaluationResult {
+  query: string
+  passed: boolean
+  matchedExpectedTitles: string[]
+  missingExpectedTitles: string[]
+  forbiddenTitleHits: string[]
+  retrievedTitles: string[]
+  result: {
+    knowledgeUsed: boolean
+    evidence: KnowledgeEvidence[]
+    citations: KnowledgeCitation[]
+  }
 }
 
 export interface LoveConversation {
@@ -24,6 +119,8 @@ export interface LoveConversationMessageResult {
   assistantMessage: ConversationMessage
   memorySummary: string
   safetyFlags: string[]
+  knowledgeUsed: boolean
+  citations: KnowledgeCitation[]
 }
 
 export interface LoveConversationMessagesResult {
@@ -74,6 +171,8 @@ interface MessageResponse {
   assistant_message: MessageDto
   memory_summary: string
   safety_flags: string[]
+  knowledge_used?: boolean
+  citations?: CitationDto[]
 }
 
 interface MessagesResponse {
@@ -87,6 +186,90 @@ interface MessageDto {
   role: 'user' | 'assistant'
   content: string
   safety_flags: string[]
+  citations?: CitationDto[]
+}
+
+interface CitationDto {
+  chunk_id: string
+  title: string
+  source_uri: string
+  score: number
+}
+
+interface KnowledgeChunkDto {
+  chunk_id: string
+  chunk_index: number
+  title: string
+  title_path: string
+  content: string
+  token_count: number
+  qdrant_point_id?: string | null
+  status: string
+  metadata: Record<string, unknown>
+}
+
+interface KnowledgeDocumentDto {
+  document_id: string
+  knowledge_base_id: string
+  title: string
+  source_type: string
+  source_uri: string
+  version: string
+  status: string
+  metadata: Record<string, unknown>
+  chunks: KnowledgeChunkDto[]
+}
+
+interface KnowledgeDocumentsResponse {
+  knowledge_base_id: string
+  document_count: number
+  chunk_count: number
+  documents: KnowledgeDocumentDto[]
+}
+
+interface KnowledgeEvidenceDto {
+  chunk_id: string
+  document_id: string
+  knowledge_base_id: string
+  title: string
+  source_uri: string
+  content: string
+  score: number
+  relationship_stage?: string | null
+  primary_category?: string | null
+  topic_tags: string[]
+  intent_tags: string[]
+  safety_level: string
+}
+
+interface KnowledgeRetrievalDebugResponse {
+  query: string
+  classification: Record<string, unknown>
+  knowledge_used: boolean
+  candidate_count: number
+  selected_evidence: KnowledgeEvidenceDto[]
+  citations: CitationDto[]
+}
+
+interface KnowledgeReindexResponse {
+  knowledge_base_id: string
+  collection_name: string
+  document_count: number
+  chunk_count: number
+}
+
+interface KnowledgeRetrievalEvaluationResponse {
+  query: string
+  passed: boolean
+  matched_expected_titles: string[]
+  missing_expected_titles: string[]
+  forbidden_title_hits: string[]
+  retrieved_titles: string[]
+  result: {
+    knowledge_used: boolean
+    evidence: KnowledgeEvidenceDto[]
+    citations: CitationDto[]
+  }
 }
 
 interface LoveReportResponse {
@@ -150,6 +333,8 @@ export async function sendLoveConversationMessage(
     assistantMessage: mapMessage(response.assistant_message),
     memorySummary: response.memory_summary,
     safetyFlags: response.safety_flags,
+    knowledgeUsed: response.knowledge_used ?? false,
+    citations: (response.citations ?? []).map(mapCitation),
   }
 }
 
@@ -170,12 +355,156 @@ export async function generateLoveReport(
   }
 }
 
+export async function getLoveMasterKnowledgeDocuments(): Promise<KnowledgeDocumentsResult> {
+  const response = await apiGet<KnowledgeDocumentsResponse>(
+    '/knowledge-bases/love-master-default/documents',
+  )
+
+  return {
+    knowledgeBaseId: response.knowledge_base_id,
+    documentCount: response.document_count,
+    chunkCount: response.chunk_count,
+    documents: response.documents.map(mapKnowledgeDocument),
+  }
+}
+
+export async function getLoveMasterRetrievalDebug(
+  query: string,
+  limit?: number,
+): Promise<KnowledgeRetrievalDebugResult> {
+  const params = new URLSearchParams({ query })
+  if (limit !== undefined) {
+    params.set('limit', String(limit))
+  }
+  const response = await apiGet<KnowledgeRetrievalDebugResponse>(
+    `/knowledge-bases/love-master-default/retrieval-debug?${params.toString()}`,
+  )
+
+  return {
+    query: response.query,
+    classification: mapClassification(response.classification),
+    knowledgeUsed: response.knowledge_used,
+    candidateCount: response.candidate_count,
+    selectedEvidence: response.selected_evidence.map(mapKnowledgeEvidence),
+    citations: (response.citations ?? []).map(mapCitation),
+  }
+}
+
+export async function reindexLoveMasterKnowledgeBase(): Promise<KnowledgeReindexResult> {
+  const response = await apiPost<KnowledgeReindexResponse>(
+    '/knowledge-bases/love-master-default/documents/reindex',
+    {},
+  )
+
+  return {
+    knowledgeBaseId: response.knowledge_base_id,
+    collectionName: response.collection_name,
+    documentCount: response.document_count,
+    chunkCount: response.chunk_count,
+  }
+}
+
+export async function runLoveMasterRetrievalEvaluation(
+  options: KnowledgeRetrievalEvaluationOptions,
+): Promise<KnowledgeRetrievalEvaluationResult> {
+  const response = await apiPost<KnowledgeRetrievalEvaluationResponse>(
+    '/knowledge-bases/love-master-default/retrieval-evaluations',
+    {
+      query: options.query,
+      expected_titles: options.expectedTitles,
+      forbidden_titles: options.forbiddenTitles,
+      limit: options.limit,
+    },
+  )
+
+  return {
+    query: response.query,
+    passed: response.passed,
+    matchedExpectedTitles: response.matched_expected_titles,
+    missingExpectedTitles: response.missing_expected_titles,
+    forbiddenTitleHits: response.forbidden_title_hits,
+    retrievedTitles: response.retrieved_titles,
+    result: {
+      knowledgeUsed: response.result.knowledge_used,
+      evidence: response.result.evidence.map(mapKnowledgeEvidence),
+      citations: (response.result.citations ?? []).map(mapCitation),
+    },
+  }
+}
+
 function mapMessage(message: MessageDto): ConversationMessage {
   return {
     messageId: message.message_id,
     role: message.role,
     content: message.content,
     safetyFlags: message.safety_flags,
+    citations: (message.citations ?? []).map(mapCitation),
+  }
+}
+
+function mapCitation(citation: CitationDto): KnowledgeCitation {
+  return {
+    chunkId: citation.chunk_id,
+    title: citation.title,
+    sourceUri: citation.source_uri,
+    score: citation.score,
+  }
+}
+
+function mapKnowledgeDocument(document: KnowledgeDocumentDto): KnowledgeDocument {
+  return {
+    documentId: document.document_id,
+    knowledgeBaseId: document.knowledge_base_id,
+    title: document.title,
+    sourceType: document.source_type,
+    sourceUri: document.source_uri,
+    version: document.version,
+    status: document.status,
+    metadata: document.metadata,
+    chunks: document.chunks.map(mapKnowledgeChunk),
+  }
+}
+
+function mapKnowledgeChunk(chunk: KnowledgeChunkDto): KnowledgeChunk {
+  return {
+    chunkId: chunk.chunk_id,
+    chunkIndex: chunk.chunk_index,
+    title: chunk.title,
+    titlePath: chunk.title_path,
+    content: chunk.content,
+    tokenCount: chunk.token_count,
+    qdrantPointId: chunk.qdrant_point_id ?? null,
+    status: chunk.status,
+    metadata: chunk.metadata,
+  }
+}
+
+function mapKnowledgeEvidence(evidence: KnowledgeEvidenceDto): KnowledgeEvidence {
+  return {
+    chunkId: evidence.chunk_id,
+    documentId: evidence.document_id,
+    knowledgeBaseId: evidence.knowledge_base_id,
+    title: evidence.title,
+    sourceUri: evidence.source_uri,
+    content: evidence.content,
+    score: evidence.score,
+    relationshipStage: evidence.relationship_stage ?? null,
+    primaryCategory: evidence.primary_category ?? null,
+    topicTags: evidence.topic_tags,
+    intentTags: evidence.intent_tags,
+    safetyLevel: evidence.safety_level,
+  }
+}
+
+function mapClassification(classification: Record<string, unknown>): KnowledgeRetrievalDebugResult['classification'] {
+  return {
+    ...classification,
+    relationshipStage:
+      typeof classification.relationship_stage === 'string'
+        ? classification.relationship_stage
+        : undefined,
+    primaryCategory:
+      typeof classification.primary_category === 'string' ? classification.primary_category : undefined,
   }
 }
 

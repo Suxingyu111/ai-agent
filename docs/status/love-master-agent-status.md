@@ -43,8 +43,26 @@
   - 当本地缓存的会话 id 在后端不存在时，恢复阶段会清理旧 id；发送阶段会自动重建会话并重试当前消息一次，避免 Docker 数据库重建或页面长期打开后一直发送失败。
   - 支持创建新会话并清理本地会话 id。
   - 支持基于当前会话生成并展示结构化恋爱报告。
+  - 支持在助手消息中折叠展示 RAG 参考资料。
   - 支持发送中和错误状态。
 - 新增前端聊天 API 封装 `frontend/src/modules/chat/api.ts`。
+- 新增 AI 恋爱大师 RAG 本地知识库能力：
+  - 新增 `docs/architecture/love-master-rag-knowledge-base-design.md`，沉淀 AI 恋爱大师 RAG 知识库扩展的正式设计方案。
+  - 新增 `backend/app/modules/knowledge/`，支持默认恋爱知识库、Markdown 知识卡片入库、标题/段落切块、确定性本地 embedding、向量检索和 citations 返回。
+  - 新增 Qdrant 向量存储适配，入库时写入 `vector + payload`；本地开发和测试环境在 Qdrant 不可用时使用内存向量兜底。
+  - 新增 34 份项目内默认知识卡片，沉淀在 `backend/knowledge/love_master/curated/`，覆盖关系基础、沟通、边界安全、约会推进、冲突修复、信任嫉妒、亲密节奏、长期承诺、分手恢复、风险安全和异地关系，便于本地 smoke 验证和后续维护。
+  - 新增 URL 资料采集整理能力，可抓取网页 HTML，过滤页面噪声，提取标题、摘要、段落和列表，并整理成统一 Markdown 知识卡片后自动入库。
+  - URL 采集整理出的 Markdown 知识卡片会沉淀到 `KNOWLEDGE_DOCUMENTS_PATH/collected/`，默认本地目录为 `backend/knowledge/love_master/collected/`；服务初始化默认知识库时会读取 `curated/` 和 `collected/` 下的项目内 Markdown 文件。
+  - 新增批量 URL 采集接口、资料来源清单接口、默认知识库重建索引接口、召回调试接口和检索评估接口，支持采集审核、索引恢复和知识质量回归检查。
+  - 默认知识库初始化已改为幂等扫描项目内 Markdown 文件；即使数据库已有旧文档，也会继续把新增项目资料入库并重新加载向量索引。
+  - RAG 切片策略已优化为短章节合并：过短的“适用场景 / 核心原则 / 可执行步骤 / 可参考话术”会合并成一个上下文更完整的 chunk，避免一句话式证据影响模型回答质量。
+  - 检索命中后会扩展同文档上下文：向量召回仍命中最相关 chunk，但返回给 LLM 的 evidence 会补充同一文档的相邻 chunk，减少只拿到局部片段的问题。
+  - 重建索引已支持历史切片迁移：对项目内 Markdown，会按 `source_uri` 或 `source_hash` 找到旧文档，删除历史 chunk 和对应 Qdrant point，再按当前切片策略重建。
+  - 会话发送消息时会自动检索 AI 恋爱大师默认知识库，不要求前端或用户手动选择“单身篇、恋爱篇、已婚篇”等目录。
+  - RAG 检索结果会按租户、项目、智能体、知识库、`active`、`safety_level` 和自动识别出的主分类过滤，并只把去重截断后的少量 evidence 注入大模型。
+  - 助手消息和顶层响应会返回 `citations`，前端在消息气泡中折叠展示参考资料。
+  - 新增 `GET /api/v1/knowledge-bases/love-master-default/documents` 调试查看接口，可按文档聚合展示已入库资料、chunk 正文、元数据和 `qdrant_point_id`，比直接查看 Qdrant point 更直观。
+  - 新增前端 `/knowledge` RAG 知识库工作台，可查看已入库资料、原文切片、Qdrant 点位、召回分类、召回证据、重建索引结果和检索评估结果。
 
 ## 核心业务约束
 
@@ -52,6 +70,9 @@
 - 智能体不能调用外部工具，`allowed_tools` 保持为空。
 - 智能体只能使用 `agent.love_master` 记忆命名空间。
 - 当前多轮消息和会话级 `memory_summary` 已通过 SQLAlchemy 业务表持久化，服务重启后可按 `conversation_id` 恢复。
+- RAG 知识库元数据、文档和 chunk 已通过 SQLAlchemy 业务表持久化，chunk embedding 写入向量存储。
+- RAG 不暴露前端目录选择；服务端会根据用户问题自动分类、过滤和检索。
+- `safety_level=blocked` 的知识片段不会进入回答证据。
 - 当前长期记忆暂未实现跨会话检索、用户授权确认和更细粒度敏感信息过滤。
 - 安全策略优先拒绝或转向以下请求：
   - 跟踪、监视、偷拍。
@@ -79,35 +100,92 @@
   - `backend/app/modules/conversations/repository.py`
   - `backend/app/modules/conversations/service.py`
   - `backend/app/modules/conversations/schemas.py`
+  - `backend/app/modules/knowledge/api.py`
+  - `backend/app/modules/knowledge/collector.py`
+  - `backend/app/modules/knowledge/embedding.py`
+  - `backend/app/modules/knowledge/schemas.py`
+  - `backend/app/modules/knowledge/service.py`
+  - `backend/app/modules/knowledge/text.py`
+  - `backend/app/modules/knowledge/vector_store.py`
   - `backend/app/api/v1/router.py`
+  - `backend/app/core/config.py`
   - `backend/app/main.py`
+  - `docs/architecture/love-master-rag-knowledge-base-design.md`
+  - `backend/knowledge/love_master/README.md`
+  - `backend/knowledge/love_master/curated/`
 - 前端：
   - `frontend/src/modules/chat/api.ts`
   - `frontend/src/modules/chat/pages/ChatWorkspacePage.vue`
+  - `frontend/src/modules/chat/pages/KnowledgeWorkbenchPage.vue`
+  - `frontend/src/app/router.ts`
   - `frontend/src/shared/api/http.ts`
   - `frontend/src/styles/global.css`
+  - `frontend/index.html`
+  - `frontend/public/favicon.svg`
 - 测试：
   - `backend/tests/test_chat_model.py`
+  - `backend/tests/test_config.py`
+  - `backend/tests/test_knowledge_api.py`
+  - `backend/tests/test_knowledge_service.py`
   - `backend/tests/test_love_master_agent.py`
   - `backend/tests/test_conversations_api.py`
+  - `frontend/src/app/App.test.ts`
   - `frontend/src/modules/chat/api.test.ts`
 
 ## 已执行验证
 
-- `backend/.venv/bin/python -m pytest backend/tests/test_love_master_agent.py backend/tests/test_conversations_api.py -q`
-  - 结果：通过，`11 passed`。
-- `backend/.venv/bin/python -m pytest backend/tests/test_chat_model.py backend/tests/test_love_master_agent.py backend/tests/test_conversations_api.py -q`
-  - 结果：通过，`18 passed, 1 warning`。
-- `backend/.venv/bin/python -m py_compile backend/app/agent_kernel/contracts/model.py backend/app/agent_kernel/runtime/chat_model.py backend/app/agents/love_master_agent/agent.py`
+- `backend/.venv/bin/python -m pytest backend/tests/test_knowledge_service.py backend/tests/test_knowledge_api.py -q`
+  - 结果：通过，`10 passed, 1 warning`。
+- `backend/.venv/bin/python -m pytest backend/tests -q`
+  - 结果：通过，`39 passed, 1 warning`。
+- `backend/.venv/bin/ruff check backend/app backend/tests`
   - 结果：通过。
-- `backend/.venv/bin/python -m pytest backend/tests/test_conversations_api.py -q`
-  - 结果：通过，`7 passed, 1 warning`。
-- `npm test -- --run src/modules/chat/api.test.ts`
+- `npm test -- --run`
   - 目录：`frontend/`
-  - 结果：通过，`6 passed`。
+  - 结果：通过，`11 passed`。
 - `npm run build`
   - 目录：`frontend/`
   - 结果：通过。
+- `npm test -- --run src/app/App.test.ts src/modules/chat/api.test.ts`
+  - 目录：`frontend/`
+  - 结果：通过，`10 passed`。
+- `npm run typecheck`
+  - 目录：`frontend/`
+  - 结果：通过。
+- `git diff --check`
+  - 结果：通过。
+- 知识库接口 smoke：
+  - 后端使用 `APP_ENV=development`、临时 SQLite、`QDRANT_COLLECTION_PREFIX=ai_agent_browser` 启动在 `127.0.0.1:8021`。
+  - 当前优化后的切片策略下，项目内 `34` 份 curated 文档会生成 `34` 个上下文更完整的 chunk。
+  - `GET /api/v1/knowledge-bases/love-master-default/retrieval-debug?query=如何沟通手机隐私？&limit=5` 返回 `knowledge_used=true`，自动分类 `primary_category=safety_boundaries`，命中 `数字边界沟通原则`。
+- Playwright 浏览器 smoke：
+  - 前端使用 `VITE_API_BASE_URL=http://127.0.0.1:8021/api/v1` 启动在 `127.0.0.1:5175`。
+  - `/knowledge` 页面成功展示已入库文档、原文切片正文和 Qdrant 点位。
+  - 在 `/knowledge` 点击“重建索引”后会按当前切片策略重建向量索引。
+  - 在 `/knowledge` 运行“如何沟通手机隐私和回复频率？”召回调试后显示 `已命中`、`safety_boundaries` 和 `数字边界沟通原则`。
+  - 在 `/knowledge` 运行检索评估后显示 `通过`、`命中期望：数字边界沟通原则`、`缺失期望：无`、`禁召命中：无`。
+  - 在 `/` 聊天页发送“对象总想看我手机，还要求我秒回消息，我该怎么沟通隐私和回复频率？”后，助手消息展示 `参考资料 2 条`，展开后可见 `数字边界沟通原则` 和 `情绪边界和责任区分`。
+  - 截图：`output/playwright/love-master-knowledge-workbench.png`、`output/playwright/love-master-chat-rag-citations.png`。
+- URL 采集 smoke：
+  - 使用本地 `python3 -m http.server 8099` 暴露测试 HTML 页面。
+  - `KnowledgeService.collect_love_master_url(...)` 成功抓取 `http://127.0.0.1:8099/healthy-boundaries.html`，整理并入库为 `indexed` 文档。
+  - 使用中文问题“如何沟通隐私边界和回复速度？”检索后成功返回 `Healthy relationship boundaries` citation。
+- URL 采集文档沉淀：
+  - `backend/tests/test_knowledge_service.py` 已覆盖采集后写入 Markdown 文件，文件内容与接口返回的 `markdown` 一致。
+  - `backend/tests/test_knowledge_service.py` 已覆盖默认知识库从项目内 `curated/` Markdown 文件播种。
+  - `backend/tests/test_knowledge_api.py` 已覆盖 `markdown_path` 响应字段。
+- 知识库调试查看：
+  - `backend/tests/test_knowledge_api.py` 已覆盖 `GET /api/v1/knowledge-bases/love-master-default/documents` 返回文档、chunk、正文、元数据和 `qdrant_point_id`。
+- 知识面扩充与索引恢复：
+  - `backend/tests/test_knowledge_service.py::test_split_markdown_merges_short_sections_into_context_rich_chunk` 已覆盖短章节合并，确认一份短卡片不再拆成多个一句话 chunk。
+  - `backend/tests/test_knowledge_service.py::test_query_love_master_expands_hit_with_same_document_context` 已覆盖命中局部 chunk 后补充同文档上下文，确认 evidence 中能带上后续话术。
+  - `backend/tests/test_knowledge_service.py::test_reindex_rebuilds_existing_project_document_chunks_and_removes_stale_vectors` 已覆盖历史短 chunk 迁移，确认重建索引会删除旧数据库 chunk 和旧向量 point。
+  - `backend/tests/test_knowledge_service.py::test_project_curated_love_master_knowledge_covers_core_domains` 已覆盖项目内至少 30 份知识卡片，并确认覆盖 `relationship_basics`、`communication`、`safety_boundaries`、`meeting_dating`、`conflict_repair`、`trust_jealousy`、`long_term_commitment`、`breakup_recovery` 和 `risk_safety` 等核心领域。
+  - `backend/tests/test_knowledge_service.py::test_knowledge_service_seed_adds_new_project_documents_when_database_has_existing_doc` 已覆盖数据库存在旧文档时仍会入库新增项目资料。
+- 采集审核、重建索引与召回评估：
+  - `backend/tests/test_knowledge_api.py::test_love_master_knowledge_api_supports_batch_sources_reindex_debug_and_evaluation` 已覆盖批量采集、来源清单、重建索引、召回调试和检索评估接口。
+  - `frontend/src/modules/chat/api.test.ts` 已覆盖前端读取知识库文档、召回调试、重建索引和检索评估 API 映射。
+  - `frontend/src/app/App.test.ts` 已覆盖 `/knowledge` 调试工作台路由入口。
 
 ## 当前限制
 
@@ -116,6 +194,10 @@
 - 恋爱报告已保存到 `love_reports` 表，但当前还没有报告历史查询接口，前端刷新后仍只恢复对话和记忆摘要。
 - 尚未接入 LangGraph checkpointer；当前先用数据库中的会话消息和 `memory_summary` 支撑 thread-level memory 行为。
 - 尚未提供 SSE 流式输出，当前前端使用普通 HTTP POST 获取完整回复。
+- RAG 当前支持 Markdown 知识卡片入库、普通 HTML 网页 URL 采集、批量采集、重建索引、召回调试和基础检索评估；PDF、JavaScript 渲染页面、需要登录的网站、hybrid search、rerank 和知识版本回滚尚未实现。
+- 采集沉淀目录当前是本地文件路径；生产容器部署时需要把 `KNOWLEDGE_DOCUMENTS_PATH` 挂载到持久化卷，否则容器重建会丢失未提交的采集文档。
+- 本地开发默认使用确定性 `local_hash` embedding，便于无外部密钥环境测试；生产应切换到稳定 embedding 服务，并重建向量 collection。
+- 当前知识库接口尚未接入登录态、知识库归属、软删除审计和会员额度；生产版本必须补齐租户/用户权限过滤。
 - 已接入 SQLAlchemy 业务数据库；尚未接入用户登录态、会话归属、软删除、审计日志、会员额度和 CSRF。
 - 记忆候选当前由服务端自动合并到会话摘要，后续应增加用户授权确认和敏感信息过滤。
 
@@ -125,3 +207,4 @@
 - 增加会话列表 UI 和报告历史查询接口。
 - 增加 `POST /runs` 和 SSE 流式输出接口，提升聊天体验。
 - 扩展安全策略，覆盖未成年人、家暴、自伤、他伤、性胁迫和严重心理危机场景。
+- 为知识库继续增加 PDF/网页导入增强、失败重试、知识版本回滚、hybrid search、rerank 和更系统的 golden query 评估集。

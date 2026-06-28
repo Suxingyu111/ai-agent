@@ -7,6 +7,7 @@ from app.agent_kernel.guardrails.pipeline import GuardrailPipeline, build_defaul
 from app.core.config import Settings, get_settings
 from app.db import create_db_and_tables, create_session_factory
 from app.modules.conversations import ConversationService
+from app.modules.knowledge import KnowledgeService
 
 
 DEFAULT_DATABASE_URL = Settings.model_fields["database_url"].default
@@ -42,7 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             guardrail_pipeline=guardrail_pipeline,
         )
     database_url = app_settings.database_url
-    if app_settings.app_env == "test" and database_url == DEFAULT_DATABASE_URL:
+    if app_settings.app_env == "test" and not database_url.startswith("sqlite"):
         database_url = "sqlite+pysqlite:///:memory:"
     session_factory = create_session_factory(database_url)
 
@@ -54,10 +55,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     else:
         initialize_database()
 
+    knowledge_service = KnowledgeService(settings=app_settings, session_factory=session_factory)
+    if settings is not None:
+        knowledge_service.seed_default_documents()
+    else:
+        app.router.on_startup.append(knowledge_service.seed_default_documents)
+
+    app.state.knowledge_service = knowledge_service
     app.state.conversation_service = ConversationService(
         model_client=model_client,
         guardrail_pipeline=guardrail_pipeline,
         session_factory=session_factory,
+        knowledge_service=knowledge_service,
     )
     return app
 

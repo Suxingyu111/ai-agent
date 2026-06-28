@@ -35,6 +35,7 @@ class ConversationMessageOut(BaseModel):
     role: Literal["user", "assistant"]
     content: str
     safety_flags: list[str] = Field(default_factory=list)
+    citations: list[dict[str, object]] = Field(default_factory=list)
 
 
 class MessageCreateResponse(BaseModel):
@@ -43,6 +44,8 @@ class MessageCreateResponse(BaseModel):
     assistant_message: ConversationMessageOut
     memory_summary: str
     safety_flags: list[str] = Field(default_factory=list)
+    knowledge_used: bool = False
+    citations: list[dict[str, object]] = Field(default_factory=list)
 
 
 class ConversationMessagesResponse(BaseModel):

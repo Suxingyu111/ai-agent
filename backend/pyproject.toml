@@ -31,6 +31,10 @@ dev = [
 pythonpath = ["."]
 testpaths = ["tests"]
 
+[tool.setuptools.packages.find]
+include = ["app*"]
+namespaces = false
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

@@ -8,5 +8,10 @@ export const router = createRouter({
       name: 'home',
       component: () => import('@/modules/chat/pages/ChatWorkspacePage.vue'),
     },
+    {
+      path: '/knowledge',
+      name: 'knowledge-workbench',
+      component: () => import('@/modules/chat/pages/KnowledgeWorkbenchPage.vue'),
+    },
   ],
 })

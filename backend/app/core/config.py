@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     server_port: int = Field(default=8000, validation_alias="SERVER_PORT")
     api_v1_prefix: str = Field(default="/api/v1", validation_alias="API_V1_PREFIX")
     cors_allowed_origins_raw: str = Field(
-        default="http://127.0.0.1:5173",
+        default="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174",
         validation_alias="CORS_ALLOWED_ORIGINS",
     )
 
@@ -46,6 +46,33 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = Field(default=60, validation_alias="LLM_TIMEOUT_SECONDS")
     llm_max_retries: int = Field(default=3, validation_alias="LLM_MAX_RETRIES")
     vector_store_provider: str = Field(default="qdrant", validation_alias="VECTOR_STORE_PROVIDER")
+    qdrant_url: str = Field(default="http://127.0.0.1:6333", validation_alias="QDRANT_URL")
+    qdrant_api_key: str = Field(default="", validation_alias="QDRANT_API_KEY")
+    qdrant_collection_prefix: str = Field(
+        default="ai_agent_dev",
+        validation_alias="QDRANT_COLLECTION_PREFIX",
+    )
+    embedding_provider: str = Field(default="local_hash", validation_alias="EMBEDDING_PROVIDER")
+    embedding_model: str = Field(default="local-hash-v1", validation_alias="EMBEDDING_MODEL")
+    embedding_base_url: str = Field(default="", validation_alias="EMBEDDING_BASE_URL")
+    embedding_api_key: str = Field(default="", validation_alias="EMBEDDING_API_KEY")
+    embedding_dimension: int = Field(default=64, validation_alias="EMBEDDING_DIMENSION")
+    rag_top_k: int = Field(default=20, validation_alias="RAG_TOP_K")
+    rag_final_top_n: int = Field(default=5, validation_alias="RAG_FINAL_TOP_N")
+    rag_score_threshold: float = Field(default=0.1, validation_alias="RAG_SCORE_THRESHOLD")
+    rag_context_max_chars: int = Field(default=3000, validation_alias="RAG_CONTEXT_MAX_CHARS")
+    knowledge_collection_timeout_seconds: int = Field(
+        default=15,
+        validation_alias="KNOWLEDGE_COLLECTION_TIMEOUT_SECONDS",
+    )
+    knowledge_collection_max_chars: int = Field(
+        default=6000,
+        validation_alias="KNOWLEDGE_COLLECTION_MAX_CHARS",
+    )
+    knowledge_documents_path: str = Field(
+        default="./knowledge/love_master",
+        validation_alias="KNOWLEDGE_DOCUMENTS_PATH",
+    )
     storage_provider: str = Field(default="local", validation_alias="STORAGE_PROVIDER")
     mcp_enabled: bool = Field(default=True, validation_alias="MCP_ENABLED")
     sandbox_enabled: bool = Field(default=True, validation_alias="SANDBOX_ENABLED")

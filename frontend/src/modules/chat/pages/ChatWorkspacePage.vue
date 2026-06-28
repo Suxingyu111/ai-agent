@@ -39,6 +39,15 @@
         >
           <span>{{ message.role === 'user' ? '你' : 'AI 恋爱大师' }}</span>
           <p>{{ message.content }}</p>
+          <details v-if="message.citations.length > 0" class="message-citations">
+            <summary>参考资料 {{ message.citations.length }} 条</summary>
+            <ul>
+              <li v-for="citation in message.citations" :key="citation.chunkId">
+                <strong>{{ citation.title }}</strong>
+                <small>{{ citation.sourceUri }}</small>
+              </li>
+            </ul>
+          </details>
         </article>
       </div>
 

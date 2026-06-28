@@ -35,10 +35,10 @@ frontend/.env.prod.example
 
 ## 本地依赖服务
 
-MySQL 和 Redis 使用 Docker 启动：
+MySQL、Redis 和 Qdrant 使用 Docker 启动：
 
 ```bash
-docker compose up -d mysql redis
+docker compose up -d mysql redis qdrant
 docker compose ps
 ```
 
@@ -47,9 +47,13 @@ docker compose ps
 ```text
 MySQL: 127.0.0.1:3307
 Redis: 127.0.0.1:6379
+Qdrant REST: 127.0.0.1:6333
+Qdrant gRPC: 127.0.0.1:6334
 ```
 
-本地 `backend/.env.example` 已和 `docker-compose.yml` 的账号、密码、数据库名保持一致。
+Qdrant 数据通过 Docker 命名卷 `ai_agent_qdrant_data` 持久化到容器内 `/qdrant/storage`，容器重建后已入库的向量数据仍会保留。
+
+本地 `backend/.env.example` 已和 `docker-compose.yml` 的账号、密码、数据库名、Redis 地址和 Qdrant 地址保持一致。
 
 ## 后端开发
 
@@ -84,8 +88,10 @@ npm run dev
 ## 设计文档
 
 - `docs/architecture/multi-agent-platform-design.md`
+- `docs/architecture/love-master-rag-knowledge-base-design.md`
 - `docs/api/health.md`
 - `docs/api/conversations.md`
+- `docs/api/knowledge-bases.md`
 - `docs/status/project-initialization-status.md`
 - `docs/status/love-master-agent-status.md`
 - `docs/status/guardrails-status.md`

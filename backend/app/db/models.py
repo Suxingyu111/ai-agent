@@ -54,6 +54,7 @@ class ConversationMessageModel(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     safety_flags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
     sequence_no: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -97,3 +98,88 @@ class LoveReportModel(Base):
     report: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     safety_flags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class KnowledgeBaseModel(Base):
+    __tablename__ = "knowledge_bases"
+    __table_args__ = (
+        Index("ix_knowledge_bases_project_domain", "tenant_id", "project_id", "domain"),
+    )
+
+    knowledge_base_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    project_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    domain: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        onupdate=utcnow,
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+
+class KnowledgeDocumentModel(Base):
+    __tablename__ = "knowledge_documents"
+    __table_args__ = (
+        Index("ix_knowledge_documents_base_status", "knowledge_base_id", "status"),
+    )
+
+    document_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    knowledge_base_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("knowledge_bases.knowledge_base_id"),
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(40), default="markdown", nullable=False)
+    source_uri: Mapped[str] = mapped_column(String(500), nullable=False)
+    source_hash: Mapped[str] = mapped_column(String(80), nullable=False)
+    version: Mapped[str] = mapped_column(String(40), default="v1", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        onupdate=utcnow,
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+
+
+class KnowledgeChunkModel(Base):
+    __tablename__ = "knowledge_chunks"
+    __table_args__ = (
+        Index("ix_knowledge_chunks_document", "document_id", "chunk_index"),
+        Index("ix_knowledge_chunks_base_status", "knowledge_base_id", "status"),
+    )
+
+    chunk_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("knowledge_documents.document_id"),
+        nullable=False,
+    )
+    knowledge_base_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("knowledge_bases.knowledge_base_id"),
+        nullable=False,
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    title_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(80), nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    qdrant_point_id: Mapped[str | None] = mapped_column(String(80), default=None)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        onupdate=utcnow,
+    )
